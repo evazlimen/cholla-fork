@@ -84,7 +84,7 @@ char *Trim(char *s)
 const std::set<const char *> optionalParams = {
     "flag_delta",   "ddelta_dt",   "n_delta",  "Lz",       "Lx",      "phi",     "theta",
     "delta",        "nzr",         "nxr",      "H0",       "Omega_M", "Omega_L", "Init_redshift",
-    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z"};
+    "End_redshift", "tile_length", "n_proc_x", "n_proc_y", "n_proc_z", "T_input", "n_input"};
 
 /*! \fn int Is_Param_Valid(char *name);
  * \brief Verifies that a param is valid (even if not needed).  Avoids
@@ -338,6 +338,11 @@ void Parse_Param(char *name, char *value, struct Parameters *parms)
     parms->P_blast = atof(value);
   } else if (strcmp(name, "wave_length") == 0) {
     parms->wave_length = atof(value);
+  } else if (strcmp(name, "T_input") == 0) {
+    printf("attemptong to set t_input\n");
+    parms->T_input = atof(value);
+  } else if (strcmp(name, "n_input") == 0) {
+    parms->n_input = atof(value);
 #ifdef PARTICLES
   } else if (strcmp(name, "prng_seed") == 0) {
     parms->prng_seed = atoi(value);

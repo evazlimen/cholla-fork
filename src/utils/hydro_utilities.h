@@ -76,6 +76,7 @@ inline __host__ __device__ Real Calc_Energy_Primitive(Real const &P, Real const 
                                                       Real const &magnetic_y = 0.0, Real const &magnetic_z = 0.0)
 {
   // Compute and return energy
+  printf("calc energy primitive pressure is %e\n", P);
   Real energy = (fmax(P, TINY_NUMBER) / (gamma - 1.)) + 0.5 * d * (vx * vx + vy * vy + vz * vz);
 
 #ifdef MHD

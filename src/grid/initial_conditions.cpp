@@ -51,6 +51,9 @@ void Grid3D::Set_Initial_Conditions(Parameters P)
     KH_res_ind();
   } else if (strcmp(P.init, "Rayleigh_Taylor") == 0) {
     Rayleigh_Taylor();
+  } else if (strcmp(P.init, "Creasey_Cooling") == 0) {
+    printf("creasey\n");
+    Creasey_Cooling(P);
   } else if (strcmp(P.init, "Implosion_2D") == 0) {
     Implosion_2D();
   } else if (strcmp(P.init, "Gresho") == 0) {
@@ -583,6 +586,87 @@ void Grid3D::Riemann(Parameters const &P)
 #endif  // SCALAR
 #ifdef DE
             C.GasEnergy[id] = P.P_r / (gama - 1.0);
+#endif  // DE
+          }
+        }
+      }
+    }
+  }
+}
+
+/*! \fn void Creasey_Cooling(Real rho_l, Real vx_l, Real vy_l, Real vz_l, Real P_l, Real 
+ Real rho_r, Real vx_r, Real vy_r, Real vz_r, Real
+ P_r, Real diaph, Real T_input, Real n_input)
+ *  \brief Initialize the grid with radiative cooling described in Creasey 2011. */
+void Grid3D::Creasey_Cooling(Parameters const &P)
+{
+  size_t const istart = H.n_ghost - 1;
+  size_t const iend   = H.nx - H.n_ghost;
+  size_t jstart, kstart, jend, kend;
+  if (H.ny > 1) {
+    jstart = H.n_ghost - 1;
+    jend   = H.ny - H.n_ghost;
+  } else {
+    jstart = 0;
+    jend   = H.ny;
+  }
+  if (H.nz > 1) {
+    kstart = H.n_ghost - 1;
+    kend   = H.nz - H.n_ghost;
+  } else {
+    kstart = 0;
+    kend   = H.nz;
+  }
+  // set density and pressure based on the input temperature and number density
+  // put everything in code units for the generator
+  // printf("the temp i inputed was %e and the number denisty %e\n", P.T_input, P.n_input);
+  Real mu = 0.6;
+  Real placeholder_rho_l = MP*P.n_input*mu/DENSITY_UNIT;
+  Real placeholder_rho_r = MP*P.n_input*mu/DENSITY_UNIT;
+  Real placeholder_P_l = P.n_input * KB * P.T_input/PRESSURE_UNIT; 
+  Real placeholder_P_r = P.n_input * KB * P.T_input/PRESSURE_UNIT;
+  // printf("the calcualted density is %e %e the calcualted pressure is %e %e\n", placeholder_rho_l, placeholder_rho_r, placeholder_P_l, placeholder_P_r);
+  // set initial values of conserved variables
+  for (size_t k = kstart; k < kend; k++) {
+    for (size_t j = jstart; j < jend; j++) {
+      for (size_t i = istart; i < iend; i++) {
+        // get cell index
+        size_t const id = i + j * H.nx + k * H.nx * H.ny;
+
+        // get cell-centered position
+        Real x_pos, y_pos, z_pos;
+        Get_Position(i, j, k, &x_pos, &y_pos, &z_pos);
+
+        // Exclude the rightmost ghost cell on the "left" side
+        if ((k >= kstart) and (j >= jstart) and (i >= istart)) {
+          if (x_pos < P.diaph) {
+            C.density[id]    = placeholder_rho_l;
+            C.momentum_x[id] = placeholder_rho_l * P.vx_l;
+            C.momentum_y[id] = placeholder_rho_l * P.vy_l;
+            C.momentum_z[id] = placeholder_rho_l * P.vz_l;
+            C.Energy[id] = hydro_utilities::Calc_Energy_Primitive(placeholder_P_l, placeholder_rho_l, P.vx_l, P.vy_l, P.vz_l, gama);
+	    //printf("energy in ic is %e\n", C.Energy[id]);
+#ifdef SCALAR
+  #ifdef BASIC_SCALAR
+            C.basic_scalar[id] = 1.0 * placeholder_rho_l;
+  #endif
+#endif  // SCALAR
+#ifdef DE
+            C.GasEnergy[id] = placeholder_P_l / (gama - 1.0);
+#endif  // DE
+          } else {
+            C.density[id]    = placeholder_rho_r;
+            C.momentum_x[id] = placeholder_rho_r * P.vx_r;
+            C.momentum_y[id] = placeholder_rho_r * P.vy_r;
+            C.momentum_z[id] = placeholder_rho_r * P.vz_r;
+            C.Energy[id] = hydro_utilities::Calc_Energy_Primitive(placeholder_P_r, placeholder_rho_r, P.vx_r, P.vy_r, P.vz_r, gama);
+#ifdef SCALAR
+  #ifdef BASIC_SCALAR
+            C.basic_scalar[id] = 0.0 * placeholder_rho_r;
+  #endif
+#endif  // SCALAR
+#ifdef DE
+            C.GasEnergy[id] = placeholder_P_r / (gama - 1.0);
 #endif  // DE
           }
         }

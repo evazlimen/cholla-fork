@@ -250,6 +250,8 @@ struct Parameters {
   Real radius              = 0;
   Real P_blast             = 0;
   Real wave_length         = 1.0;
+  Real T_input             = 0;
+  Real n_input             = 0;
 #ifdef PARTICLES
   // The random seed for particle simulations. With the default of 0 then a
   // machine dependent seed will be generated.

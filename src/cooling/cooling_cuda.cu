@@ -10,7 +10,7 @@
     #include "../global/global.h"
     #include "../global/global_cuda.h"
     #include "../utils/gpu.hpp"
-
+    #include "../utils/hydro_utilities.h"
     #ifdef CLOUDY_COOL
       #include "../cooling/texture_utilities.h"
     #endif
@@ -84,6 +84,7 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
     // load values of density and pressure
     d = dev_conserved[id];
     E = dev_conserved[4 * n_cells + id];
+    //printf("dev conserved denisty %e\n", d);
     // don't apply cooling if this thread crashed
     if (E < 0.0 || E != E) {
       return;
@@ -92,7 +93,11 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
     vx = dev_conserved[1 * n_cells + id] / d;
     vy = dev_conserved[2 * n_cells + id] / d;
     vz = dev_conserved[3 * n_cells + id] / d;
-    p  = (E - 0.5 * d * (vx * vx + vy * vy + vz * vz)) * (gamma - 1.0);
+    Real vx_squared = 0.5*d*(vx*vx+vy*vy+vz*vz);
+    //printf("vx is %lf vx squared is %lf\n", vx, vx_squared);
+    p  = (E - 0.5 * d * (vx * vx)); // + vy * vy + vz * vz)) * (gamma - 1.0);
+    //p = hydro_utilities::Calc_Pressure_Primitive(E, d, vx, vy, vz, gamma);
+  //printf("dev conserved d %lf, E %lf,vx %lf, vy %lf, vz %lf,  p %lf\n", d, E, vx, vy, vz, p);
     p  = fmax(p, (Real)TINY_NUMBER);
     // #endif
     #ifdef DE
@@ -108,15 +113,16 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
     #ifdef DE
     T_init = d * ge * (gamma - 1.0) * PRESSURE_UNIT / (n * KB);
     #endif
-
+    //printf("The initial temperature is %e, desnity %e, n %e, pressure %e\n", T_init, d, n, p);
     // calculate cooling rate per volume
     T = T_init;
     // call the cooling function
-    #ifdef CLOUDY_COOL
-    cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-    #else
-    cool = CIE_cool(n, T);
-    #endif
+    cool = test_cool(id, n, T);
+    //#ifdef CLOUDY_COOL
+    //cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
+    //#else
+    //cool = CIE_cool(n, T);
+    //#endif
 
     // calculate change in temperature given dt
     del_T = cool * dt * TIME_UNIT * (gamma - 1.0) / (n * KB);
@@ -130,12 +136,13 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
       // how much time is left from the original timestep?
       dt -= dt_sub;
     // calculate cooling again
-    #ifdef CLOUDY_COOL
-      cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-    #else
-      cool = CIE_cool(n, T);
-    #endif
-      // calculate new change in temperature
+    cool = test_cool(id, n, T);
+    //#ifdef CLOUDY_COOL
+    //cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
+    //#else
+    //cool = CIE_cool(n, T);
+    //#endif
+    // calculate new change in temperature
       del_T = cool * dt * TIME_UNIT * (gamma - 1.0) / (n * KB);
     }
 
@@ -150,12 +157,14 @@ __global__ void cooling_kernel(Real *dev_conserved, int nx, int ny, int nz, int 
     #endif
 
     // calculate cooling rate for new T
-    #ifdef CLOUDY_COOL
-    cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
-    #else
-    cool = CIE_cool(n, T);
-    // printf("%d %d %d %e %e %e\n", xid, yid, zid, n, T, cool);
-    #endif
+    cool = test_cool(id, n, T);
+    //#ifdef CLOUDY_COOL
+    //cool = Cloudy_cool(n, T, coolTexObj, heatTexObj);
+    //#else
+    //cool = CIE_cool(n, T);
+    //#endif
+    //printf("%d %d %d %e %e %e\n", xid, yid, zid, n, T, cool);
+    
 
     // and send back from kernel
     dev_conserved[4 * n_cells + id] = E;
@@ -181,13 +190,14 @@ __device__ Real test_cool(int tid, Real n, Real T)
 
   // Creasey cooling function
   if (T >= T0 && T <= 0.5 * (T1 + T0)) {
+     //printf("temp is %f t0 is %f\n", T, T0);
     cool = n * n * lambda * (T - T0) / T0;
   }
   if (T >= 0.5 * (T1 + T0) && T <= T1) {
     cool = n * n * lambda * (T1 - T) / T0;
   }
 
-  // printf("%d %f %f\n", tid, T, cool);
+   printf("%d %f %f\n", tid, T, cool);
   return cool;
 }
 

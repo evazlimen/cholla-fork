@@ -575,6 +575,13 @@ class Grid3D
    */
   void Riemann(Parameters const &P);
 
+ /*!
+   * \brief Initialize the grid with radiative cooling described in Creasey 2011.
+   *
+   * \param[in] P the parameters struct.
+   */
+  void Creasey_Cooling(Parameters const &P);
+
   /*! \fn void Shu_Osher()
    *  \brief Initialize the grid with the Shu-Osher shock tube problem. See
    * Stone 2008, Section 8.1 */
